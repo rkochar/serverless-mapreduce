@@ -1,7 +1,7 @@
 '''
  Driver to start BigLambda Job
- 
- 
+
+
  Copyright 2016 Amazon.com, Inc. or its affiliates. All Rights Reserved.
  SPDX-License-Identifier: MIT-0
 '''
@@ -11,14 +11,15 @@ import json
 import math
 import random
 import re
-import StringIO
+from os import getenv
+from io import StringIO
 import sys
 import time
 
 import lambdautils
 
 import glob
-import subprocess 
+import subprocess
 from multiprocessing.dummy import Pool as ThreadPool
 from functools import partial
 
@@ -35,8 +36,11 @@ xray_recorder.configure(sampling_rules=SAMPLING_RULES)
 
 xray_recorder.begin_segment('Map Reduce Driver')
 # create an S3 session
-s3 = boto3.resource('s3')
-s3_client = boto3.client('s3')
+
+session = boto3.Session(profile_name=getenv('AWS_PROFILE', 'default'))
+
+s3 = session.resource('s3')
+s3_client = session.client('s3')
 
 JOB_INFO = 'jobinfo.json'
 
@@ -44,8 +48,7 @@ JOB_INFO = 'jobinfo.json'
 @xray_recorder.capture('zipLambda')
 def zipLambda(fname, zipname):
     # faster to zip with shell exec
-    subprocess.call(['zip', zipname] + glob.glob(fname) + glob.glob(JOB_INFO) +
-                        glob.glob("lambdautils.py"))
+    subprocess.call(['zip', zipname] + glob.glob(fname) + glob.glob(JOB_INFO) + glob.glob("lambdautils.py"))
 
 @xray_recorder.capture('write_to_s3')
 def write_to_s3(bucket, key, data, metadata):
@@ -53,7 +56,7 @@ def write_to_s3(bucket, key, data, metadata):
 
 @xray_recorder.capture('write_job_config')
 def write_job_config(job_id, job_bucket, n_mappers, r_func, r_handler):
-    fname = "jobinfo.json"; 
+    fname = "jobinfo.json";
     with open(fname, 'w') as f:
         data = json.dumps({
             "jobId": job_id,
@@ -85,8 +88,8 @@ lambda_read_timeout = config["lambda_read_timeout"]
 boto_max_connections = config["boto_max_connections"]
 
 # Setting longer timeout for reading lambda results and larger connections pool
-lambda_config = Config(read_timeout=lambda_read_timeout, max_pool_connections=boto_max_connections)
-lambda_client = boto3.client('lambda', config=lambda_config)
+lambda_config = Config(read_timeout=lambda_read_timeout, max_pool_connections=boto_max_connections, region_name=region)
+lambda_client = session.client('lambda', config=lambda_config)
 
 # Fetch all the keys that match the prefix
 all_keys = []
@@ -107,7 +110,7 @@ L_PREFIX = "BL"
 
 # Lambda functions
 mapper_lambda_name = L_PREFIX + "-mapper-" +  job_id;
-reducer_lambda_name = L_PREFIX + "-reducer-" +  job_id; 
+reducer_lambda_name = L_PREFIX + "-reducer-" +  job_id;
 rc_lambda_name = L_PREFIX + "-rc-" +  job_id;
 
 # write job config
@@ -149,7 +152,7 @@ xray_recorder.end_subsegment() #Create reducer coordinator Lambda function
 xray_recorder.begin_subsegment('Write job data to S3')
 j_key = job_id + "/jobdata";
 data = json.dumps({
-                "mapCount": n_mappers, 
+                "mapCount": n_mappers,
                 "totalS3Files": len(all_keys),
                 "startTime": time.time()
                 })
@@ -173,7 +176,7 @@ def invoke_lambda(batches, m_id):
     batch = [k.key for k in batches[m_id-1]]
     xray_recorder.current_segment().put_annotation("batch_for_mapper_"+str(m_id), str(batch))
     #print "invoking", m_id, len(batch)
-    resp = lambda_client.invoke( 
+    resp = lambda_client.invoke(
             FunctionName = mapper_lambda_name,
             InvocationType = 'RequestResponse',
             Payload =  json.dumps({
@@ -186,10 +189,10 @@ def invoke_lambda(batches, m_id):
         )
     out = eval(resp['Payload'].read())
     mapper_outputs.append(out)
-    print "mapper output", out
+    print("mapper output", out)
     xray_recorder.end_segment()
 # Exec Parallel
-print "# of Mappers ", n_mappers 
+print("# of Mappers ", n_mappers)
 pool = ThreadPool(n_mappers)
 Ids = [i+1 for i in range(n_mappers)]
 invoke_lambda_partial = partial(invoke_lambda, batches)
@@ -205,7 +208,7 @@ while mappers_executed < n_mappers:
 pool.close()
 pool.join()
 
-print "all the mappers finished"
+print("all the mappers finished")
 xray_recorder.end_subsegment() #Invoke mappers
 
 # Delete Mapper function
@@ -240,12 +243,12 @@ while True:
     job_keys = s3_client.list_objects(Bucket=job_bucket, Prefix=job_id)["Contents"]
     keys = [jk["Key"] for jk in job_keys]
     total_s3_size = sum([jk["Size"] for jk in job_keys])
-    
-    print "check to see if the job is done"
+
+    print("check to see if the job is done")
 
     # check job done
     if job_id + "/result" in keys:
-        print "job done"
+        print("job done")
         reducer_lambda_time += float(s3.Object(job_bucket, job_id + "/result").metadata['processingtime'])
         for key in keys:
             if "task/reducer" in key:
@@ -260,8 +263,8 @@ s3_storage_hour_cost = 1 * 0.0000521574022522109 * (total_s3_size/1024.0/1024.0/
 s3_put_cost = len(job_keys) *  0.005/1000
 
 # S3 GET # $0.004/10000 
-total_s3_get_ops += len(job_keys) 
-s3_get_cost = total_s3_get_ops * 0.004/10000 
+total_s3_get_ops += len(job_keys)
+s3_get_cost = total_s3_get_ops * 0.004/10000
 
 # Total Lambda costs
 total_lambda_secs += reducer_lambda_time
@@ -269,13 +272,13 @@ lambda_cost = total_lambda_secs * 0.00001667 * lambda_memory/ 1024.0
 s3_cost =  (s3_get_cost + s3_put_cost + s3_storage_hour_cost)
 
 # Print costs
-print "Reducer L", reducer_lambda_time * 0.00001667 * lambda_memory/ 1024.0
-print "Lambda Cost", lambda_cost
-print "S3 Storage Cost", s3_storage_hour_cost
-print "S3 Request Cost", s3_get_cost + s3_put_cost 
-print "S3 Cost", s3_cost 
-print "Total Cost: ", lambda_cost + s3_cost
-print "Total Lines:", total_lines 
+print("Reducer L", reducer_lambda_time * 0.00001667 * lambda_memory/ 1024.0)
+print("Lambda Cost", lambda_cost)
+print("S3 Storage Cost", s3_storage_hour_cost)
+print("S3 Request Cost", s3_get_cost + s3_put_cost)
+print("S3 Cost", s3_cost)
+print("Total Cost: ", lambda_cost + s3_cost)
+print("Total Lines:", total_lines)
 xray_recorder.end_subsegment() #Calculate cost
 
 # Delete Reducer function
