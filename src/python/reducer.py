@@ -9,7 +9,7 @@ import boto3
 import json
 import random
 import resource
-import StringIO
+from io import StringIO
 import urllib2
 import time
 
@@ -26,9 +26,9 @@ def write_to_s3(bucket, key, data, metadata):
     s3.Bucket(bucket).put_object(Key=key, Body=data, Metadata=metadata)
 
 def lambda_handler(event, context):
-    
+
     start_time = time.time()
-    
+
     job_bucket = event['jobBucket']
     bucket = event['bucket']
     reducer_keys = event['keys']
@@ -36,7 +36,7 @@ def lambda_handler(event, context):
     r_id = event['reducerId']
     step_id = event['stepId']
     n_reducers = event['nReducers']
-    
+
     # aggr 
     results = {}
     line_count = 0
@@ -55,21 +55,21 @@ def lambda_handler(event, context):
                     results[srcIp] = 0
                 results[srcIp] += float(val)
         except Exception, e:
-            print e
+            print(e)
 
     time_in_secs = (time.time() - start_time)
     #timeTaken = time_in_secs * 1000000000 # in 10^9 
     #s3DownloadTime = 0
     #totalProcessingTime = 0 
     pret = [len(reducer_keys), line_count, time_in_secs]
-    print "Reducer ouputput", pret
+    print("Reducer ouputput", pret)
 
     if n_reducers == 1:
         # Last reducer file, final result
         fname = "%s/result" % job_id
     else:
         fname = "%s/%s%s/%s" % (job_id, TASK_REDUCER_PREFIX, step_id, r_id)
-    
+
     metadata = {
                     "linecount":  '%s' % line_count,
                     "processingtime": '%s' % time_in_secs,
@@ -86,7 +86,7 @@ ev = {
     "jobId": "py-biglambda-1node-3",
     "nReducers": 1,
     "keys": ["py-biglambda-1node-3/task/mapper/1"],
-    "reducerId": 1, 
+    "reducerId": 1,
     "stepId" : 1
 }
 lambda_handler(ev, {});

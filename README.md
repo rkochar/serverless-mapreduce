@@ -33,6 +33,8 @@ Check policy.json for a sample that you can use or extend.
 
 To run the example, you must have the AWS CLI set up. Your credentials must have access to create and invoke Lambda and access to list, read, and write to a S3 bucket.
 
+0. Setup an AWS Profile. `$ export AWS_PROFILE="<profile>"`. It will use profile called `default` if the environment variable does not exist.
+
 1. Create your S3 bucket to store the intermediaries and result
 (remember to use your own bucket name due to S3 namespace)
 
