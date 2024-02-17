@@ -10,7 +10,7 @@ import json
 import random
 import resource
 from io import StringIO
-import urllib2
+import urllib3
 import time
 
 # create an S3 & Dynamo session
@@ -21,12 +21,13 @@ s3_client = boto3.client('s3')
 TASK_MAPPER_PREFIX = "task/mapper/";
 TASK_REDUCER_PREFIX = "task/reducer/";
 
+
 def write_to_s3(bucket, key, data, metadata):
     # Write to S3 Bucket
     s3.Bucket(bucket).put_object(Key=key, Body=data, Metadata=metadata)
 
-def lambda_handler(event, context):
 
+def lambda_handler(event, context):
     start_time = time.time()
 
     job_bucket = event['jobBucket']
@@ -50,17 +51,17 @@ def lambda_handler(event, context):
 
         try:
             for srcIp, val in json.loads(contents).iteritems():
-                line_count +=1
+                line_count += 1
                 if srcIp not in results:
                     results[srcIp] = 0
                 results[srcIp] += float(val)
-        except Exception, e:
+        except Exception as e:
             print(e)
 
     time_in_secs = (time.time() - start_time)
-    #timeTaken = time_in_secs * 1000000000 # in 10^9 
-    #s3DownloadTime = 0
-    #totalProcessingTime = 0 
+    # timeTaken = time_in_secs * 1000000000 # in 10^9
+    # s3DownloadTime = 0
+    # totalProcessingTime = 0
     pret = [len(reducer_keys), line_count, time_in_secs]
     print("Reducer ouputput", pret)
 
@@ -71,13 +72,14 @@ def lambda_handler(event, context):
         fname = "%s/%s%s/%s" % (job_id, TASK_REDUCER_PREFIX, step_id, r_id)
 
     metadata = {
-                    "linecount":  '%s' % line_count,
-                    "processingtime": '%s' % time_in_secs,
-                    "memoryUsage": '%s' % resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
-               }
+        "linecount": '%s' % line_count,
+        "processingtime": '%s' % time_in_secs,
+        "memoryUsage": '%s' % resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+    }
 
     write_to_s3(job_bucket, fname, json.dumps(results), metadata)
     return pret
+
 
 '''
 ev = {

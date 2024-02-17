@@ -1,10 +1,10 @@
 {
-      "bucket": "big-data-benchmark",
-      "prefix": "pavlo/text/1node/uservisits/",
-      "jobBucket": "test-map-reduce-faas-monad",
+      "bucket": "faas-monad-mapreduce",
+      "prefix": "somekey/amplab1",
+      "jobBucket": "faas-monad-mapreduce-results",
       "region": "eu-west-1",
       "lambdaMemory": 1536,
-      "concurrentLambdas": 10,
+      "concurrentLambdas": 1,
       "lambda_read_timeout": 300,
       "boto_max_connections": 10,
       "mapper": {

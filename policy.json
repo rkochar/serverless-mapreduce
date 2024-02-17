@@ -61,7 +61,7 @@
                 "s3:PutObjectVersionAcl"
             ],
             "Resource": [
-                "arn:aws:s3:::test-map-reduce/*"
+                "arn:aws:s3:::faas-monad-mapreduce/*"
             ]
         },
 

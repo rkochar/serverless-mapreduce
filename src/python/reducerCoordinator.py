@@ -105,9 +105,9 @@ def get_reducer_state_info(files, job_id, job_bucket):
             return (r_index, [])
 
 def lambda_handler(event, context):
-    print("Received event: " + json.dumps(event, indent=2)))
+    print("Received event: " + json.dumps(event, indent=2))
 
-    start_time = time.time();
+    start_time = time.time()
 
     # Job Bucket. We just got a notification from this bucket
     bucket = event['Records'][0]['s3']['bucket']['name']
@@ -126,7 +126,7 @@ def lambda_handler(event, context):
     # Get job files
     files = s3_client.list_objects(Bucket=bucket, Prefix=job_id)["Contents"]
 
-    if check_job_done(files) == True:
+    if check_job_done(files):
         print("Job done!!! Check the result file")
         # TODO:  Delete reducer and coordinator lambdas
         return
