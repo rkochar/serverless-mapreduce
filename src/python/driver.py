@@ -99,6 +99,7 @@ if __name__ == '__main__':
     lambda_client = session.client('lambda', config=lambda_config)
 
     # Fetch all the keys that match the prefix
+    print(f"prefix: {config['prefix']}")
     all_keys = []
     for obj in s3.Bucket(bucket).objects.filter(Prefix=config["prefix"]).all():
         all_keys.append(obj)
@@ -140,9 +141,9 @@ if __name__ == '__main__':
 
     # Reducer func
     # xray_recorder.begin_subsegment('Create reducer Lambda function')
-    l_reducer = lambdautils.LambdaManager(lambda_client, s3_client, region, config["reducer"]["zip"], job_id,
-                                          reducer_lambda_name, config["reducer"]["handler"])
-    l_reducer.update_code_or_create_on_noexist()
+    # l_reducer = lambdautils.LambdaManager(lambda_client, s3_client, region, config["reducer"]["zip"], job_id,
+    #                                       reducer_lambda_name, config["reducer"]["handler"])
+    # l_reducer.update_code_or_create_on_noexist()
     # xray_recorder.end_subsegment() #Create reducer Lambda function
 
     # Coordinator
@@ -238,10 +239,11 @@ if __name__ == '__main__':
     s3_storage_hours = 0
     total_lines = 0
 
-    for output in mapper_outputs:
-        total_s3_get_ops += int(output[0])
-        total_lines += int(output[1])
-        total_lambda_secs += float(output[2])
+    # for output in mapper_outputs:
+    #     print(f"mapper output: {output}")
+    #     total_s3_get_ops += int(output[0])
+    #     total_lines += int(output[1])
+    #     total_lambda_secs += float(output[2])
 
     # Note: Wait for the job to complete so that we can compute total cost ; create a poll every 10 secs
 
@@ -261,7 +263,7 @@ if __name__ == '__main__':
         # check job done
         if job_id + "/result" in keys:
             print("job done")
-            reducer_lambda_time += float(s3.Object(job_bucket, job_id + "/result").metadata['processingtime'])
+            # reducer_lambda_time += float(s3.Object(job_bucket, job_id + "/result").metadata['processingtime'])
             for key in keys:
                 if "task/reducer" in key:
                     reducer_lambda_time += float(s3.Object(job_bucket, key).metadata['processingtime'])
@@ -285,6 +287,7 @@ if __name__ == '__main__':
 
     # Print costs
     print("Reducer L", reducer_lambda_time * 0.00001667 * lambda_memory / 1024.0)
+    print("reducer time", reducer_lambda_time)
     print("Lambda Cost", lambda_cost)
     print("S3 Storage Cost", s3_storage_hour_cost)
     print("S3 Request Cost", s3_get_cost + s3_put_cost)
@@ -295,8 +298,10 @@ if __name__ == '__main__':
 
     # Delete Reducer function
     # xray_recorder.begin_subsegment('Delete reducers')
-    l_reducer.delete_function()
+
+    # l_reducer.delete_function()
     l_rc.delete_function()
+    #
     # xray_recorder.end_subsegment() #Delete reducers
 
     # xray_recorder.end_segment() #Map Reduce Driver

@@ -28,6 +28,7 @@ def write_to_s3(bucket, key, data, metadata):
 
 
 def lambda_handler(event, context):
+    print("test")
     start_time = time.time()
 
     job_bucket = event['jobBucket']
@@ -78,6 +79,9 @@ def lambda_handler(event, context):
     }
 
     write_to_s3(job_bucket, fname, json.dumps(results), metadata)
+    execution_time = time.time() - start_time
+    print(f"execution time: {execution_time}")
+    print(f"ram: {resource.getrusage(resource.RUSAGE_SELF).ru_maxrss}")
     return pret
 
 

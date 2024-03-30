@@ -1,10 +1,10 @@
 {
       "bucket": "faas-monad-mapreduce",
-      "prefix": "somekey/amplab1",
+      "prefix": "somekey/amplab3",
       "jobBucket": "faas-monad-mapreduce-results",
       "region": "eu-west-1",
-      "lambdaMemory": 1536,
-      "concurrentLambdas": 1,
+      "lambdaMemory": 256,
+      "concurrentLambdas": 5,
       "lambda_read_timeout": 300,
       "boto_max_connections": 10,
       "mapper": {

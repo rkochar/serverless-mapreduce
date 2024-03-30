@@ -80,6 +80,8 @@ class LambdaManager(object):
         if not prefix:
             prefix = self.job_id + "/task";
 
+        print(f"bucket: {bucket}")
+
         self.s3.put_bucket_notification_configuration(
             Bucket=bucket,
             NotificationConfiguration={

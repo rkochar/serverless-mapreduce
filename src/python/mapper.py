@@ -45,26 +45,24 @@ def lambda_handler(event, context):
     for key in src_keys:
         response = s3_client.get_object(Bucket=src_bucket, Key=key)
         contents = response['Body'].read().decode("utf-8")
-        print(f"type: {type(contents)}")
-        print(f"contents: {contents}")
 
         for line in contents.split('\n')[:-1]:
             line_count += 1
-            try:
-                data = line.split(',')
-                srcIp = data[0][:8]
-                if srcIp not in output:
-                    output[srcIp] = 0
-                output[srcIp] += float(data[3])
-            except Exception as e:
-                print(e)
+            # try:
+            #     data = line.split(',')
+            #     srcIp = data[0][:8]
+            #     if srcIp not in output:
+            #         output[srcIp] = 0
+            #     output[srcIp] += float(data[3])
+            # except Exception as e:
+            #     pass
                 # err += '%s' % e
 
     time_in_secs = (time.time() - start_time)
     # timeTaken = time_in_secs * 1000000000 # in 10^9
     # s3DownloadTime = 0
     # totalProcessingTime = 0
-    pret = [len(src_keys), line_count, time_in_secs, err]
+    pret = [len(src_keys), line_count, time_in_secs, err, resource.getrusage(resource.RUSAGE_SELF).ru_maxrss]
     mapper_fname = "%s/%s%s" % (job_id, TASK_MAPPER_PREFIX, mapper_id)
     metadata = {
         "linecount": '%s' % line_count,
@@ -74,6 +72,9 @@ def lambda_handler(event, context):
 
     print("metadata", metadata)
     write_to_s3(job_bucket, mapper_fname, json.dumps(output), metadata)
+    end_time = time.time()
+    print(f"execution_time: {end_time - start_time}")
+    print(f"ram: {resource.getrusage(resource.RUSAGE_SELF).ru_maxrss}")
     return pret
 
 
